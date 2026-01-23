@@ -1,0 +1,6 @@
+numpy>=1.20.0
+h5py>=3.0.0
+opencv-python>=4.5.0
+requests>=2.25.0
+scipy>=1.7.0
+matplotlib>=3.5.0
