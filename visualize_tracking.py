@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
 Visualize fly tracking data overlaid on video frames.
+
+Usage:
+    python visualize_tracking.py --video movie1.avi --mat movie1_track.mat --output output.mp4
 """
 
 import cv2
 import scipy.io as sio
 import numpy as np
-import matplotlib.pyplot as plt
 import argparse
-from pathlib import Path
 
 
 def load_tracking_data(mat_path):
@@ -71,77 +72,8 @@ def draw_fly(frame, fly_data, idx, color):
         cv2.line(frame, center, wing_r, color, 1)
 
 
-def visualize_frames(video_path, mat_path, output_path='tracking_overlay.png',
-                     sample_frames=None):
-    """Create visualization of tracking data on sample frames."""
-    # Load tracking data
-    data, names, idx, flag_frames = load_tracking_data(mat_path)
-    n_flies, n_frames, n_features = data.shape
-
-    print(f"Loaded tracking data: {n_flies} flies, {n_frames} frames, {n_features} features")
-
-    # Load video
-    cap = cv2.VideoCapture(str(video_path))
-    total_video_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    print(f"Video frames: {total_video_frames}")
-
-    # Default sample frames
-    if sample_frames is None:
-        sample_frames = [0, 1000, 5000, 10000, 20000, 50000]
-
-    # Filter out frames beyond video length
-    sample_frames = [f for f in sample_frames if f < min(total_video_frames, n_frames)]
-
-    # Colors for each fly (BGR format for OpenCV)
-    colors = [(0, 0, 255), (0, 255, 0)]  # Red and Green
-
-    # Create subplot grid
-    n_samples = len(sample_frames)
-    n_cols = min(3, n_samples)
-    n_rows = (n_samples + n_cols - 1) // n_cols
-
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
-    if n_samples == 1:
-        axes = np.array([axes])
-    axes = axes.flatten()
-
-    for ax_idx, frame_num in enumerate(sample_frames):
-        ax = axes[ax_idx]
-
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
-        ret, frame = cap.read()
-
-        if not ret:
-            ax.set_title(f"Frame {frame_num} - Could not read")
-            ax.axis('off')
-            continue
-
-        # Draw tracking data for each fly
-        for fly_id in range(n_flies):
-            fly_data = data[fly_id, frame_num, :]
-            draw_fly(frame, fly_data, idx, colors[fly_id])
-
-        # Convert BGR to RGB for matplotlib
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        ax.imshow(frame_rgb)
-        ax.set_title(f"Frame {frame_num}")
-        ax.axis('off')
-
-    # Hide unused axes
-    for ax_idx in range(len(sample_frames), len(axes)):
-        axes[ax_idx].axis('off')
-
-    cap.release()
-
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150)
-    print(f"Saved visualization to {output_path}")
-    plt.close()
-
-
-def export_video_clip(video_path, mat_path, output_path='tracking_clip.mp4',
-                      start_frame=0, num_frames=1000):
+def export_video_clip(video_path, mat_path, output_path='tracking_overlay.mp4',
+                      start_frame=0, num_frames=None):
     """Export a video clip with tracking overlay."""
     # Load tracking data
     data, names, idx, flag_frames = load_tracking_data(mat_path)
@@ -159,7 +91,11 @@ def export_video_clip(video_path, mat_path, output_path='tracking_clip.mp4',
     print(f"Video: {total_video_frames} frames, {fps} fps, {width}x{height}")
 
     # Validate frame range
-    end_frame = min(start_frame + num_frames, total_video_frames, n_tracking_frames)
+    if num_frames is None:
+        # Use all frames from start to end
+        end_frame = min(total_video_frames, n_tracking_frames)
+    else:
+        end_frame = min(start_frame + num_frames, total_video_frames, n_tracking_frames)
     actual_frames = end_frame - start_frame
 
     print(f"Exporting frames {start_frame} to {end_frame} ({actual_frames} frames)")
@@ -205,28 +141,18 @@ def main():
     parser.add_argument('--video', type=str, default='movie1.avi',
                         help='Path to video file')
     parser.add_argument('--mat', type=str,
-                        default='BoyMeetsBoy_wo_movies/Boy_meets_boy light/movie1/movie1_track.mat',
+                        default='movie1_track.mat',
                         help='Path to tracking .mat file')
-    parser.add_argument('--output', type=str, default='tracking_overlay.png',
-                        help='Output path (image or video)')
-    parser.add_argument('--frames', type=int, nargs='+', default=None,
-                        help='Specific frame numbers to visualize (image mode)')
-
-    # Video clip options
-    parser.add_argument('--clip', action='store_true',
-                        help='Export video clip instead of image')
+    parser.add_argument('--output', type=str, default='tracking_overlay.mp4',
+                        help='Output video path')
     parser.add_argument('--start', type=int, default=0,
-                        help='Start frame for video clip')
-    parser.add_argument('--num-frames', type=int, default=1000,
-                        help='Number of frames to export in clip')
+                        help='Start frame for video')
+    parser.add_argument('--num-frames', type=int, default=None,
+                        help='Number of frames to export (default: all frames)')
 
     args = parser.parse_args()
 
-    if args.clip:
-        output = args.output if args.output.endswith('.mp4') else 'tracking_clip.mp4'
-        export_video_clip(args.video, args.mat, output, args.start, args.num_frames)
-    else:
-        visualize_frames(args.video, args.mat, args.output, args.frames)
+    export_video_clip(args.video, args.mat, args.output, args.start, args.num_frames)
 
 
 if __name__ == '__main__':
