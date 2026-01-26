@@ -1,8 +1,8 @@
-from transformers import Qwen3VLMoeForConditionalGeneration, AutoProcessor
+from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
 
 # default: Load the model on the available device(s)
-model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
-    "Qwen/Qwen3-VL-30B-A3B-Instruct", dtype="auto", device_map="auto"
+model = Qwen3VLForConditionalGeneration.from_pretrained(
+    "Qwen/Qwen3-VL-2B-Instruct", dtype="auto", device_map="auto"
 )
 
 # We recommend enabling flash_attention_2 for better acceleration and memory saving, especially in multi-image and video scenarios.
@@ -13,13 +13,25 @@ model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
 #     device_map="auto",
 # )
 
-processor = AutoProcessor.from_pretrained("Qwen/Qwen3-VL-30B-A3B-Instruct")
+processor = AutoProcessor.from_pretrained("Qwen/Qwen3-VL-2B-Instruct")
 
 messages = [
     {
         "role": "system",
         "content": [
-            {"type": "text", "text": "You are a helpful assistant."},
+            {"type": "text", "text": '''You are an experienced data annotator. The dataset is a top down video of flies. The keypoints and orientation of the flies have already been annotated and overlaid on top of the original video. The true flies can be seen underneath the annotations. You have been tasked with evaluating whether there is any error in the annotation within the video snippet you are given.
+            
+            Suspicious frames and flies are any for which:
+            * Dropped tracks, a trajectory suddenly begins or ends but the fly is still on screen.
+            * The keypoints and orientation make sudden non-smooth changes between frames, i.e. the fly makes large jumps.
+            * The keypoints or orientation are not properly overlaid over the fly.
+            
+            '''},
+            {
+                "type": "video",
+                "video": "tracking_overlay_10s.mp4",
+            },
+            {"type": "text", "text": "The video is an example of a perfectly annotated video snippet. Notice how the movements are smooth and do not jump, and the annotation is directly over the true fly."},
         ],
     },
     {
@@ -29,7 +41,7 @@ messages = [
                 "type": "video",
                 "video": "tracking_overlay_10s.mp4",
             },
-            {"type": "text", "text": "Describe what is happening in this video."},
+            {"type": "text", "text": "Are there any errors in the annotation? If yes, reply YES and the potential error. If no, reply NO."},
         ],
     }
 ]

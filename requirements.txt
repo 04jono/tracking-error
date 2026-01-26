@@ -8,3 +8,4 @@ transformers==4.57.0
 torch==2.10.0
 torchvision==0.25.0
 av==16.1.0
+accelerate==1.12.0

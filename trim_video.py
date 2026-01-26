@@ -1,12 +1,15 @@
+import argparse
 import subprocess
 
-input_file = "tracking_overlay.mp4"
-output_file = "tracking_overlay_10s.mp4"
+parser = argparse.ArgumentParser(description="Trim video to 10 seconds")
+parser.add_argument("input_file", help="Input video file")
+parser.add_argument("output_file", help="Output video file")
+args = parser.parse_args()
 
 subprocess.run([
     "ffmpeg", "-y",
-    "-i", input_file,
+    "-i", args.input_file,
     "-t", "10",
     "-c", "copy",
-    output_file
+    args.output_file
 ])

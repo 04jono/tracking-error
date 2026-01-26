@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Visualize fly tracking data overlaid on video frames.
+Visualize fly tracking data overlaid on video frames with simulated tracking errors.
+
+Every 100 frames, the track drops for 5 frames to simulate tracking failures.
 
 Usage:
-    python visualize_tracking.py --video movie1.avi --mat movie1_track.mat --output output.mp4
+    python visualize_with_errors.py --video movie1.avi --mat movie1_track.mat --output output.mp4
 """
 
 import cv2
@@ -24,6 +26,12 @@ def load_tracking_data(mat_path):
     idx = {name: i for i, name in enumerate(names)}
 
     return data, names, idx, flag_frames
+
+
+def is_error_frame(frame_num, error_interval=100, error_duration=5):
+    """Check if frame should have a tracking error (drop)."""
+    position_in_cycle = frame_num % error_interval
+    return position_in_cycle < error_duration and frame_num >= error_interval
 
 
 def draw_fly(frame, fly_data, idx, color):
@@ -72,9 +80,9 @@ def draw_fly(frame, fly_data, idx, color):
         cv2.line(frame, center, wing_r, color, 1)
 
 
-def export_video_clip(video_path, mat_path, output_path='tracking_overlay.mp4',
-                      start_frame=0, num_frames=None):
-    """Export a video clip with tracking overlay."""
+def export_video_clip(video_path, mat_path, output_path='tracking_overlay_errors.mp4',
+                      start_frame=0, num_frames=None, error_interval=100, error_duration=5):
+    """Export a video clip with tracking overlay and simulated errors."""
     # Load tracking data
     data, names, idx, flag_frames = load_tracking_data(mat_path)
     n_flies, n_tracking_frames, n_features = data.shape
@@ -89,6 +97,7 @@ def export_video_clip(video_path, mat_path, output_path='tracking_overlay.mp4',
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     print(f"Video: {total_video_frames} frames, {fps} fps, {width}x{height}")
+    print(f"Simulating tracking errors: drop for {error_duration} frames every {error_interval} frames")
 
     # Validate frame range
     if num_frames is None:
@@ -109,16 +118,22 @@ def export_video_clip(video_path, mat_path, output_path='tracking_overlay.mp4',
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
 
+    error_frame_count = 0
+
     for frame_num in range(start_frame, end_frame):
         ret, frame = cap.read()
         if not ret:
             print(f"Could not read frame {frame_num}")
             break
 
-        # Draw tracking data for each fly
-        for fly_id in range(n_flies):
-            fly_data = data[fly_id, frame_num, :]
-            draw_fly(frame, fly_data, idx, colors[fly_id])
+        # Check if this is an error frame (track drop)
+        if is_error_frame(frame_num, error_interval, error_duration):
+            error_frame_count += 1
+        else:
+            # Draw tracking data for each fly
+            for fly_id in range(n_flies):
+                fly_data = data[fly_id, frame_num, :]
+                draw_fly(frame, fly_data, idx, colors[fly_id])
 
         out.write(frame)
 
@@ -130,25 +145,31 @@ def export_video_clip(video_path, mat_path, output_path='tracking_overlay.mp4',
     cap.release()
     out.release()
     print(f"Saved video clip to {output_path}")
+    print(f"Total error frames (track drops): {error_frame_count}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Visualize fly tracking data on video')
+    parser = argparse.ArgumentParser(description='Visualize fly tracking data with simulated errors')
     parser.add_argument('--video', type=str, default='movie1.avi',
                         help='Path to video file')
     parser.add_argument('--mat', type=str,
                         default='movie1_track.mat',
                         help='Path to tracking .mat file')
-    parser.add_argument('--output', type=str, default='tracking_overlay.mp4',
+    parser.add_argument('--output', type=str, default='tracking_overlay_errors.mp4',
                         help='Output video path')
     parser.add_argument('--start', type=int, default=0,
                         help='Start frame for video')
     parser.add_argument('--num-frames', type=int, default=None,
                         help='Number of frames to export (default: all frames)')
+    parser.add_argument('--error-interval', type=int, default=100,
+                        help='Interval between tracking errors in frames (default: 100)')
+    parser.add_argument('--error-duration', type=int, default=5,
+                        help='Duration of each tracking error in frames (default: 5)')
 
     args = parser.parse_args()
 
-    export_video_clip(args.video, args.mat, args.output, args.start, args.num_frames)
+    export_video_clip(args.video, args.mat, args.output, args.start, args.num_frames,
+                      args.error_interval, args.error_duration)
 
 
 if __name__ == '__main__':
