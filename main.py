@@ -1,8 +1,15 @@
 import asyncio
+from pathlib import Path
 from openai import AsyncOpenAI
 
+# Get the directory where this script is located
+SCRIPT_DIR = Path(__file__).parent
+ASSETS_DIR = SCRIPT_DIR / "assets" / "videos"
+
+PORT = 38343
+
 client = AsyncOpenAI(
-    base_url="http://localhost:38343/v1",
+    base_url=f"http://localhost:{PORT}/v1",
     api_key=""
 )
 
@@ -19,6 +26,10 @@ video_paths = [
     "/share/path/to/video10.mp4",
 ]
 
+# ICL example videos (hardcoded names, absolute paths generated)
+icl_correct_video = str((ASSETS_DIR / "cx_fixed_30fps_0000-0005.avi").absolute())
+icl_error_video = str((ASSETS_DIR / "cx_fixed_30fps_2040-2045.avi").absolute())
+
 ICL_MESSAGES = [
     {
         "role": "system",
@@ -30,50 +41,62 @@ ICL_MESSAGES = [
             "keypoints drifting off the animal, missing keypoints, or annotations that don't "
             "track the animal's joints consistently across frames. "
             "Consider each video snippet independent of each other, there may be errors in one but not errors in the other."
-            "Always respond with CORRECT or ERROR at the beginning of your response, followed by a brief reason."
-        )
-    },
-    {
-        "role": "user",
-        "content": [
-            {
-                "type": "video_url",
-                "video_url": {"url": "file:///share/path/to/correct_example.mp4"},
-            },
-            {
-                "type": "text",
-                "text": "Do the keypoint annotations correctly track the animal's joints throughout this video?"
-            }
-        ]
-    },
-    {
-        "role": "assistant",
-        "content": (
-            "CORRECT. All keypoints are accurately placed on the corresponding joints and consistently "
-            "track the animal's body parts throughout the video with no drift or misplacement."
-        )
-    },
-    {
-        "role": "user",
-        "content": [
-            {
-                "type": "video_url",
-                "video_url": {"url": "file:///share/path/to/error_example.mp4"},
-            },
-            {
-                "type": "text",
-                "text": "Do the keypoint annotations correctly track the animal's joints throughout this video?"
-            }
-        ]
-    },
-    {
-        "role": "assistant",
-        "content": (
-            "ERROR. The left foreleg keypoint is placed on the right foreleg, indicating a "
-            "left/right swap in the annotation."
+            "Suspicious frames and flies are any for which:"
+            "* Dropped tracks, a trajectory suddenly begins or ends (switches colors) but the fly is still on screen."
+            "* The keypoints and orientation make sudden non-smooth changes between frames, i.e. the fly makes large jumps. There could be jumps due to the frame rate, if the annotation makes jumps check for false positives based on if the annotation still overlays the fly."
+            "* The keypoints or orientation are not properly overlaid over the fly."
+            "IMPORTANT: Always respond with CORRECT or ERROR at the beginning of your response, followed by a brief reason."
         )
     },
 ]
+
+# Add ICL examples if videos are available
+if icl_correct_video:
+    ICL_MESSAGES.extend([
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "video_url",
+                    "video_url": {"url": f"file://{icl_correct_video}"},
+                },
+                {
+                    "type": "text",
+                    "text": "Do the keypoint annotations correctly track the animal's keypoints throughout this video clip?"
+                }
+            ]
+        },
+        {
+            "role": "assistant",
+            "content": (
+                "CORRECT. All keypoints of all flies are accurately placed on the corresponding joints and consistently "
+                "track the animal's body parts throughout the video with no drift, swap, or misplacement."
+            )
+        },
+    ])
+
+if icl_error_video:
+    ICL_MESSAGES.extend([
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "video_url",
+                    "video_url": {"url": f"file://{icl_error_video}"},
+                },
+                {
+                    "type": "text",
+                    "text": "Do the keypoint annotations correctly track the animal's keypoints throughout this video clip?"
+                }
+            ]
+        },
+        {
+            "role": "assistant",
+            "content": (
+                "ERROR. The fly with green keypoints in the bottom left corner has annotations that jump around the body and do not track the ends of one of its legs"
+            )
+        },
+    ])
 
 async def process_video(video_path):
     messages = ICL_MESSAGES + [
@@ -86,7 +109,7 @@ async def process_video(video_path):
                 },
                 {
                     "type": "text",
-                    "text": "Do the keypoint annotations correctly track the animal's joints throughout this video?"
+                    "text": "Do the keypoint annotations correctly track the animal's keypoints throughout this video clip?"
                 }
             ]
         }

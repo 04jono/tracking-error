@@ -5,6 +5,7 @@ __pycache__
 out/
 data/
 *.avi
+!assets/videos/*.avi
 *.mat
 *.mp4
 
