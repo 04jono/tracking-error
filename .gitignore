@@ -7,3 +7,6 @@ data/
 *.avi
 *.mat
 *.mp4
+
+# SLURM jobs
+jobs/

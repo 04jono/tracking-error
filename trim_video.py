@@ -7,13 +7,15 @@ parser.add_argument("input_file", help="Input video file")
 parser.add_argument("n", type=int, help="Number of clips to create")
 args = parser.parse_args()
 
+output_dir = "clips"
+
 # Create clips folder if it doesn't exist
-os.makedirs("clips", exist_ok=True)
+os.makedirs(output_dir, exist_ok=True)
 
 # Create n clips of 10 seconds each
 for i in range(args.n):
     start_time = i * 10
-    output_file = f"clips/clip_{i}.mp4"
+    output_file = f"{output_dir}/clip_{i}.mp4"
 
     subprocess.run([
         "ffmpeg", "-y",
