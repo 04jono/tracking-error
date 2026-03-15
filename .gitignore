@@ -5,9 +5,9 @@ __pycache__
 out/
 data/
 *.avi
-!assets/videos/*.avi
-*.mat
 *.mp4
+!assets/videos/*.mp4
+*.mat
 
 # SLURM jobs
 jobs/
