@@ -6,7 +6,7 @@ from openai import AsyncOpenAI
 SCRIPT_DIR = Path(__file__).parent
 ASSETS_DIR = SCRIPT_DIR / "assets" / "videos"
 
-PORT = 38343
+PORT = 33659
 
 client = AsyncOpenAI(
     base_url=f"http://localhost:{PORT}/v1",
@@ -14,16 +14,16 @@ client = AsyncOpenAI(
 )
 
 video_paths = [
-    "/share/path/to/video1.mp4",
-    "/share/path/to/video2.mp4",
-    "/share/path/to/video3.mp4",
-    "/share/path/to/video4.mp4",
-    "/share/path/to/video5.mp4",
-    "/share/path/to/video6.mp4",
-    "/share/path/to/video7.mp4",
-    "/share/path/to/video8.mp4",
-    "/share/path/to/video9.mp4",
-    "/share/path/to/video10.mp4",
+    "/home/jqc3/tracking-error/clips/clip_0.mp4",
+    # "/home/jqc3/tracking-error/clips/clip_1.mp4",
+    # "/home/jqc3/tracking-error/clips/clip_2.mp4",
+    # "/home/jqc3/tracking-error/clips/clip_3.mp4",
+    # "/home/jqc3/tracking-error/clips/clip_4.mp4",
+    # "/home/jqc3/tracking-error/clips/clip_5.mp4",
+    # "/home/jqc3/tracking-error/clips/clip_6.mp4",
+    # "/home/jqc3/tracking-error/clips/clip_7.mp4",
+    # "/home/jqc3/tracking-error/clips/clip_8.mp4",
+    # "/home/jqc3/tracking-error/clips/clip_9.mp4",
 ]
 
 # ICL example videos (hardcoded names, absolute paths generated)
@@ -114,7 +114,9 @@ async def process_video(video_path):
             ]
         }
     ]
-
+    
+    print(f"Processing {video_path}")
+    
     response = await client.chat.completions.create(
         model="/share/j_sun/jqc3/Qwen3.5-27B-FP8",
         messages=messages,
