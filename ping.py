@@ -1,9 +1,13 @@
+import argparse
 import requests
 
-PORT = 33659
+parser = argparse.ArgumentParser()
+parser.add_argument("--port", type=int, required=True, help="vLLM server port")
+parser.add_argument("--model", type=str, default="/share/j_sun/jqc3/Qwen3.5-27B-FP8", help="Model path")
+args = parser.parse_args()
 
 payload = {
-    "model": "/share/j_sun/jqc3/Qwen3.5-27B-FP8",
+    "model": args.model,
     "messages": [
         {"role": "user", "content": "Say hello."}
     ],
@@ -12,7 +16,7 @@ payload = {
 
 try:
     response = requests.post(
-        f"http://localhost:{PORT}/v1/chat/completions",
+        f"http://localhost:{args.port}/v1/chat/completions",
         json=payload,
         timeout=30
     )
