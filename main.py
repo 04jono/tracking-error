@@ -1,106 +1,48 @@
 import argparse
 import asyncio
+import cv2
 from pathlib import Path
 from openai import AsyncOpenAI
 
 # Get the directory where this script is located
 SCRIPT_DIR = Path(__file__).parent
 ASSETS_DIR = SCRIPT_DIR / "assets" / "videos"
+PROMPTS_DIR = SCRIPT_DIR / "assets" / "prompts"
 
 DEFAULT_MODEL = "/share/j_sun/jqc3/Qwen3.5-27B-FP8"
-VIDEO_PATHS = [
-    "/home/jqc3/tracking-error/clips/clip_0.mp4",
-    "/home/jqc3/tracking-error/clips/clip_1.mp4",
-    "/home/jqc3/tracking-error/clips/clip_2.mp4",
-    "/home/jqc3/tracking-error/clips/clip_3.mp4",
-    "/home/jqc3/tracking-error/clips/clip_4.mp4",
-    "/home/jqc3/tracking-error/clips/clip_5.mp4",
-    "/home/jqc3/tracking-error/clips/clip_6.mp4",
-    "/home/jqc3/tracking-error/clips/clip_7.mp4",
-    "/home/jqc3/tracking-error/clips/clip_8.mp4",
-    "/home/jqc3/tracking-error/clips/clip_9.mp4",
-]
-
-# ICL example videos
-ICL_CORRECT_VIDEO = str((ASSETS_DIR / "cx_fixed_30fps_0000-0005.mp4").absolute())
-ICL_ERROR_VIDEO = str((ASSETS_DIR / "cx_fixed_30fps_2040-2045.mp4").absolute())
 
 SYSTEM_MESSAGE = {
     "role": "system",
-    "content": (
-        "You are an expert in animal pose estimation and keypoint annotation quality control. "
-        "You will be shown videos of animals with keypoint annotations overlaid. "
-        "Your job is to determine whether the annotations are correct or contain errors. "
-        "Errors include: keypoints placed on wrong body parts, swapped left/right sides, "
-        "keypoints drifting off the animal, missing keypoints, or annotations that don't "
-        "track the animal's joints consistently across frames. "
-        "Consider each video snippet independent of each other, there may be errors in one but not errors in the other."
-        "Suspicious frames and flies are any for which:"
-        "* Dropped tracks, a trajectory suddenly begins or ends (switches colors) but the fly is still on screen."
-        "* The keypoints and orientation make sudden non-smooth changes between frames, i.e. the fly makes large jumps. There could be jumps due to the frame rate, if the annotation makes jumps check for false positives based on if the annotation still overlays the fly."
-        "* The keypoints or orientation are not properly overlaid over the fly."
-        "IMPORTANT: Always respond with CORRECT or ERROR at the beginning of your response, followed by a brief reason."
-    )
+    "content": (PROMPTS_DIR / "body_tracking.txt").read_text().strip()
 }
 
 
-def build_icl_messages(use_icl: bool) -> list:
-    messages = [SYSTEM_MESSAGE]
-    if not use_icl:
-        return messages
-
-    if Path(ICL_CORRECT_VIDEO).exists():
-        messages.extend([
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "video_url",
-                        "video_url": {"url": f"file://{ICL_CORRECT_VIDEO}"},
-                    },
-                    {
-                        "type": "text",
-                        "text": "Do the keypoint annotations correctly track the animal's keypoints throughout this video clip?"
-                    }
-                ]
-            },
-            {
-                "role": "assistant",
-                "content": (
-                    "CORRECT. All keypoints of all flies are accurately placed on the corresponding joints and consistently "
-                    "track the animal's body parts throughout the video with no drift, swap, or misplacement."
-                )
-            },
-        ])
-
-    if Path(ICL_ERROR_VIDEO).exists():
-        messages.extend([
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "video_url",
-                        "video_url": {"url": f"file://{ICL_ERROR_VIDEO}"},
-                    },
-                    {
-                        "type": "text",
-                        "text": "Do the keypoint annotations correctly track the animal's keypoints throughout this video clip?"
-                    }
-                ]
-            },
-            {
-                "role": "assistant",
-                "content": (
-                    "ERROR. The fly with green keypoints in the bottom left corner has annotations that jump around the body and do not track the ends of one of its legs"
-                )
-            },
-        ])
-
-    return messages
+def get_clip_paths(clips_dir):
+    """Return clip paths from clips_dir sorted by numeric index."""
+    clips_dir = Path(clips_dir)
+    paths = sorted(clips_dir.glob("clip_*.mp4"), key=lambda p: int(p.stem.split("_")[1]))
+    return [str(p) for p in paths]
 
 
-async def process_video(client, video_path, icl_messages, model):
-    messages = icl_messages + [
+def get_clip_duration_seconds(path):
+    """Return duration of a video in seconds using OpenCV."""
+    cap = cv2.VideoCapture(str(path))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    n_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    cap.release()
+    return n_frames / fps if fps > 0 else 0.0
+
+
+def format_timestamp(seconds):
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+
+async def process_video(client, video_path, model):
+    messages = [
+        SYSTEM_MESSAGE,
         {
             "role": "user",
             "content": [
@@ -135,26 +77,44 @@ async def process_video(client, video_path, icl_messages, model):
 
 async def main():
     parser = argparse.ArgumentParser(description="Run keypoint annotation quality control on video clips.")
-    parser.add_argument("--port", type=int, required=True, help="vLLM server port")
-    parser.add_argument("--no-icl", action="store_true", help="Disable in-context learning examples")
-    parser.add_argument("--model", type=str, default=DEFAULT_MODEL, help=f"Model path (default: {DEFAULT_MODEL})")
+    parser.add_argument("--port",       type=int, required=True, help="vLLM server port")
+    parser.add_argument("--model",      type=str, default=DEFAULT_MODEL, help=f"Model path (default: {DEFAULT_MODEL})")
+    parser.add_argument("--clips-dir",  type=str, default="clips", help="Directory containing clip_N.mp4 files (default: clips)")
+    parser.add_argument("--output",     type=str, default="results.out", help="Output file for results (default: results.out)")
     args = parser.parse_args()
+
+    video_paths = get_clip_paths(args.clips_dir)
+    if not video_paths:
+        print(f"No clips found in {args.clips_dir}")
+        return
+
+    clip_duration = get_clip_duration_seconds(video_paths[0])
+    print(f"model: {args.model} | port: {args.port}")
+    print(f"Found {len(video_paths)} clips, {clip_duration:.2f}s each")
 
     client = AsyncOpenAI(
         base_url=f"http://localhost:{args.port}/v1",
         api_key=""
     )
 
-    use_icl = not args.no_icl
-    icl_messages = build_icl_messages(use_icl)
-
-    print(f"ICL: {'enabled' if use_icl else 'disabled'} | model: {args.model} | port: {args.port}")
-
-    tasks = [process_video(client, path, icl_messages, args.model) for path in VIDEO_PATHS]
+    tasks = [process_video(client, path, args.model) for path in video_paths]
     results = await asyncio.gather(*tasks)
-    for video_path, result in results:
-        print(f"\n=== {video_path} ===")
-        print(result)
+
+    # Sort results by clip index to ensure chronological output
+    results = sorted(results, key=lambda r: int(Path(r[0]).stem.split("_")[1]))
+
+    lines = []
+    for i, (video_path, result) in enumerate(results):
+        t_start = i * clip_duration
+        t_end   = t_start + clip_duration
+        ts = f"{format_timestamp(t_start)}-{format_timestamp(t_end)}"
+        line = f"[{ts}] {Path(video_path).name}: {result}"
+        print(line)
+        lines.append(line)
+
+    out_path = Path(args.output)
+    out_path.write_text("\n".join(lines) + "\n")
+    print(f"\nResults written to {out_path}")
 
 
 asyncio.run(main())

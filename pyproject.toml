@@ -11,6 +11,7 @@ dependencies = [
     "matplotlib>=3.5.0",
     "numpy>=1.20.0",
     "opencv-python>=4.5.0",
+    "python-dotenv>=1.2.2",
     "requests>=2.25.0",
     "scipy>=1.7.0",
     "torch==2.10.0",
