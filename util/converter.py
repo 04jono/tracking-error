@@ -246,18 +246,28 @@ def export_video(video_path, trk_path=None, body_trk_path=None, output_path='out
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter(output_path, fourcc, FPS, (width, height))
 
-    # Distinct colors for each fly
+    # Distinct colors for each fly (BGR) — saturated, high-contrast against black and white
     colors = [
-        (0, 0, 255),    # Red
-        (0, 255, 0),    # Green
-        (255, 0, 0),    # Blue
-        (0, 255, 255),  # Yellow
-        (255, 0, 255),  # Magenta
-        (255, 255, 0),  # Cyan
-        (128, 0, 255),  # Purple
-        (0, 128, 255),  # Orange
-        (255, 128, 0),  # Sky blue
-        (128, 255, 0),  # Spring green
+        (0,   0,   255),  # Red
+        (0,   255, 0),    # Lime
+        (0,   220, 255),  # Yellow
+        (255, 0,   200),  # Hot pink
+        (255, 140, 0),    # Deep sky blue
+        (0,   128, 255),  # Orange
+        (255, 0,   80),   # Violet-red
+        (0,   255, 200),  # Spring green
+        (200, 0,   255),  # Magenta-purple
+        (0,   200, 255),  # Gold
+        (255, 60,  60),   # Dodger blue
+        (60,  255, 60),   # Bright green
+        (60,  60,  255),  # Coral red
+        (0,   255, 255),  # Bright yellow
+        (255, 0,   160),  # Deep violet
+        (0,   160, 255),  # Dark orange
+        (180, 255, 0),    # Neon cyan-green
+        (255, 0,   0),    # Pure blue
+        (0,   80,  255),  # Scarlet
+        (80,  255, 255),  # Neon yellow
     ]
 
     # Process frames

@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import cv2
+import time
 from pathlib import Path
 from openai import AsyncOpenAI
 
@@ -97,6 +98,7 @@ async def main():
         api_key=""
     )
 
+    t0 = time.monotonic()
     tasks = [process_video(client, path, args.model) for path in video_paths]
     results = await asyncio.gather(*tasks)
 
@@ -115,6 +117,7 @@ async def main():
     out_path = Path(args.output)
     out_path.write_text("\n".join(lines) + "\n")
     print(f"\nResults written to {out_path}")
+    print(f"Total time: {time.monotonic() - t0:.1f}s")
 
 
 asyncio.run(main())
