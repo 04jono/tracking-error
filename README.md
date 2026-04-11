@@ -20,3 +20,9 @@ Start the vLLM server (do this in a separate tmux session):
 
 
 
+# Example workflow:
+
+`python make_subclips.py --video data/fly_bubble/cx_GMR_SS00030_CsChr_RigC_20150826T144616/movie.ufmf --mat data/fly_bubble/cx_GMR_SS00030_CsChr_RigC_20150826T144616/ctrax_results.mat --black-bg`
+
+
+

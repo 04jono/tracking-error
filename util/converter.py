@@ -175,7 +175,7 @@ def draw_keypoints(frame, x_coords, y_coords, color):
 
 
 def export_video(video_path, trk_path=None, body_trk_path=None, output_path='output.avi',
-                 start_frame=0, num_frames=None, target_ids=None):
+                 start_frame=0, num_frames=None, target_ids=None, black_bg_output=None):
     """Export video with optional tracking overlay.
 
     Args:
@@ -245,6 +245,7 @@ def export_video(video_path, trk_path=None, body_trk_path=None, output_path='out
     # Setup video writer (XVID codec for AVI)
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter(output_path, fourcc, FPS, (width, height))
+    out_black = cv2.VideoWriter(black_bg_output, fourcc, FPS, (width, height)) if black_bg_output else None
 
     # Distinct colors for each fly (BGR) — saturated, high-contrast against black and white
     colors = [
@@ -278,6 +279,8 @@ def export_video(video_path, trk_path=None, body_trk_path=None, output_path='out
         if len(frame.shape) == 2:
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
 
+        black = np.zeros_like(frame) if out_black else None
+
         # Draw keypoint tracking for selected targets
         if tracking_data is not None:
             for target_id in targets_to_draw:
@@ -291,6 +294,8 @@ def export_video(video_path, trk_path=None, body_trk_path=None, output_path='out
                     y_coords = data[data_idx, 1, :]
                     color = colors[target_id % len(colors)]
                     draw_keypoints(frame, x_coords, y_coords, color)
+                    if black is not None:
+                        draw_keypoints(black, x_coords, y_coords, color)
 
         # Draw body tracking for selected targets
         if body_x is not None and frame_num < body_x.shape[0]:
@@ -304,14 +309,27 @@ def export_video(video_path, trk_path=None, body_trk_path=None, output_path='out
                               body_a[frame_num, target_id],
                               body_b[frame_num, target_id],
                               color)
+                    if black is not None:
+                        draw_body(black,
+                                  body_x[frame_num, target_id],
+                                  body_y[frame_num, target_id],
+                                  body_theta[frame_num, target_id],
+                                  body_a[frame_num, target_id],
+                                  body_b[frame_num, target_id],
+                                  color)
 
         out.write(frame)
+        if out_black is not None:
+            out_black.write(black)
 
         # Progress update every 500 frames
         if (frame_num - start_frame) % 500 == 0:
             print(f"  Progress: {frame_num - start_frame}/{end_frame - start_frame}")
 
     out.release()
+    if out_black is not None:
+        out_black.release()
+        print(f"Saved black-bg to {black_bg_output}")
     mov.close()
     print(f"Saved to {output_path}")
 
@@ -353,10 +371,12 @@ Examples:
                        help='Number of frames to export (default: all)')
     parser.add_argument('--targets',
                        help='Comma-separated target IDs to draw, e.g. "0,1,2" (default: all)')
+    parser.add_argument('--black-bg-output',
+                       help='Also write a second video with tracking on a black background')
 
     args = parser.parse_args()
 
-    export_video(args.video, args.trk, args.mat, args.output, args.start, args.num_frames, args.targets)
+    export_video(args.video, args.trk, args.mat, args.output, args.start, args.num_frames, args.targets, args.black_bg_output)
 
 
 if __name__ == '__main__':

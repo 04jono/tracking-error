@@ -9,6 +9,7 @@ data/
 *.mp4
 !assets/videos/*.mp4
 *.mat
+.log
 
 # SLURM jobs
 jobs/
