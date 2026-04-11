@@ -28,10 +28,12 @@ echo ""
 # Start the vLLM server
 
 vllm serve /share/j_sun/jqc3/Qwen3.5-27B-FP8 \
+  --gpu-memory-utilization 0.75 \
   --mm-encoder-tp-mode data \
   --mm-processor-cache-type shm \
   --reasoning-parser qwen3 \
   --enable-prefix-caching \
   --limit-mm-per-prompt '{"video": 4}' \
   --allowed-local-media-path $WORKING_DIR \
-  --port $PORT
+  --port $PORT \
+  2>&1 | tee $WORKING_DIR/vllm.log
