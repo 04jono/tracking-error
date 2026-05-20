@@ -1,0 +1,2 @@
+CORRECT
+All fly annotations maintain accurate spatial placement on the correct fly bodies, consistent anatomical head orientation (heading line toward the smaller rounder anterior end), and stable identity throughout the clip with no trajectory gaps or reversals.

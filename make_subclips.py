@@ -16,19 +16,40 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "util"))
 from converter import export_video, FPS
-from trim_video import slice_and_crop, slice_only, get_video_duration, compute_tiles, get_video_dimensions
+from trim_video import slice_and_crop_multi, get_video_duration, compute_tiles, get_video_dimensions
+
+
+def _load_inputs_env(filename="inputs.env"):
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    p = Path.cwd()
+    for _ in range(4):
+        candidate = p / filename
+        if candidate.exists():
+            load_dotenv(candidate, override=False)
+            return
+        p = p.parent
 
 
 def main():
+    _load_inputs_env()
+
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--video", required=True, help="Input video file")
-    parser.add_argument("--trk", help="APT .trk keypoint tracking file")
-    parser.add_argument("--mat", help="Body tracking .mat file (fixed_trx.mat or ctrax_results.mat)")
-    parser.add_argument("--output-dir", default="subclips", help="Output directory (default: subclips)")
+    parser.add_argument("--video", default=os.environ.get("VIDEO"),
+                        help="Input video file. Default: $VIDEO from inputs.env")
+    parser.add_argument("--trk", default=os.environ.get("TRK"),
+                        help="APT .trk keypoint tracking file. Default: $TRK from inputs.env")
+    parser.add_argument("--mat", default=os.environ.get("MAT"),
+                        help="Body tracking .mat file. Default: $MAT from inputs.env")
+    parser.add_argument("--output-dir", default=os.environ.get("CLIPS_DIR", "subclips"),
+                        help="Output directory. Default: subclips or $CLIPS_DIR from inputs.env")
     parser.add_argument("--n", type=int, default=None,
                         help="Number of 3-second clips to produce (default: entire video)")
     parser.add_argument("--start", type=int, default=0, help="Start frame for converter (default: 0)")
@@ -39,12 +60,17 @@ def main():
                         help="Parallel ffmpeg jobs for cropping (default: 4)")
     args = parser.parse_args()
 
+    if not args.video:
+        parser.error("--video is required (or set VIDEO in inputs.env)")
+
     os.makedirs(args.output_dir, exist_ok=True)
 
     overlaid = os.path.join(args.output_dir, "_overlaid.avi")
     black_overlaid = os.path.join(args.output_dir, "_overlaid_black.avi") if args.black_bg else None
+    raw_overlaid = os.path.join(args.output_dir, "_raw.avi")
 
-    already_rendered = os.path.exists(overlaid) and os.path.getsize(overlaid) > 0
+    already_rendered = (os.path.exists(overlaid) and os.path.getsize(overlaid) > 0 and
+                        os.path.exists(raw_overlaid) and os.path.getsize(raw_overlaid) > 0)
     if args.black_bg:
         already_rendered = already_rendered and os.path.exists(black_overlaid) and os.path.getsize(black_overlaid) > 0
 
@@ -60,6 +86,7 @@ def main():
             start_frame=args.start,
             target_ids=args.targets,
             black_bg_output=black_overlaid,
+            raw_output=raw_overlaid,
         )
 
     if not os.path.exists(overlaid) or os.path.getsize(overlaid) == 0:
@@ -74,15 +101,14 @@ def main():
     W, H = get_video_dimensions(overlaid)
     tiles = compute_tiles(W, H)
 
-    print(f"\n=== Saving uncropped clips ===")
-    slice_only(overlaid, os.path.join(args.output_dir, "uncropped"), n_clips, args.workers)
-
-    print(f"\n=== Cropping overlay clips ===")
-    slice_and_crop(overlaid, os.path.join(args.output_dir, "overlay"), n_clips, args.workers)
-
+    print(f"\n=== Cropping clips ===")
+    inputs = [
+        (raw_overlaid, os.path.join(args.output_dir, "raw")),
+        (overlaid,     os.path.join(args.output_dir, "overlay")),
+    ]
     if black_overlaid:
-        print(f"\n=== Cropping black-bg clips ===")
-        slice_and_crop(black_overlaid, os.path.join(args.output_dir, "black_bg"), n_clips, args.workers)
+        inputs.append((black_overlaid, os.path.join(args.output_dir, "black_bg")))
+    slice_and_crop_multi(inputs, n_clips, args.workers)
 
     # Build frame manifest: maps each output file to its frame range in the original video
     frames_per_clip = int(3 * FPS)
@@ -94,14 +120,13 @@ def main():
         base = {"start_frame": orig_start, "end_frame": orig_end,
                 "start_time_s": orig_start / FPS, "end_time_s": (orig_end + 1) / FPS}
 
-        manifest[f"uncropped/clip_{i}.mp4"] = base
-
         for row, col, x, y, cw, ch in tiles:
-            key = f"overlay/clip_{i}_tile_{row}_{col}.mp4"
-            manifest[key] = {**base, "tile": {"row": row, "col": col},
-                             "crop": {"x": x, "y": y, "w": cw, "h": ch}}
+            tile_meta = {**base, "tile": {"row": row, "col": col},
+                         "crop": {"x": x, "y": y, "w": cw, "h": ch}}
+            manifest[f"overlay/clip_{i}_tile_{row}_{col}.mp4"]   = tile_meta
+            manifest[f"raw/clip_{i}_tile_{row}_{col}.mp4"] = tile_meta.copy()
             if black_overlaid:
-                manifest[f"black_bg/clip_{i}_tile_{row}_{col}.mp4"] = manifest[key].copy()
+                manifest[f"black_bg/clip_{i}_tile_{row}_{col}.mp4"] = tile_meta.copy()
 
     manifest_path = os.path.join(args.output_dir, "manifest.json")
     with open(manifest_path, "w") as f:

@@ -5,11 +5,15 @@ __pycache__
 # Data files
 out/
 data/
+subclips/
 *.avi
 *.mp4
 !assets/videos/*.mp4
 *.mat
-.log
+*.log
+*.pid
+*.port
+*.env
 
 # SLURM jobs
 jobs/

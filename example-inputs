@@ -1,0 +1,17 @@
+# Make a file named inputs.env with this structure
+
+# Model
+MODEL=/share/j_sun/jqc3/Gemma-4-31B
+#MODEL=/share/j_sun/jqc3/Qwen3.6-27B
+
+# Tracking data
+FLYTRACKER=data/fly_bubble/VNC2_Line4_RigB_20230830T122258/flytracker_trx.mat
+FIXED=data/fly_bubble/VNC2_Line4_RigB_20230830T122258/fixed_trx.mat
+VIDEO=data/fly_bubble/VNC2_Line4_RigB_20230830T122258/movie.ufmf
+# TRK=data/fly_bubble/VNC2_Line1_RigC_20230621T102506/fixed_apt.trk
+MAT=data/fly_bubble/VNC2_Line4_RigB_20230830T122258/fixed_trx.mat
+
+# Pipeline directories and outputs
+CLIPS_DIR=subclips
+VLM_RESULTS=results.out
+REPORT=report.txt

@@ -1,0 +1,2 @@
+ERROR
+Two fly annotations jump discontinuously to incorrect positions in the final frames — visible as sudden multi-body-length displacement in the black background trail video — indicating a position-level tracking failure and identity swap.

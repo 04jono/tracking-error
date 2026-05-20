@@ -1,0 +1,14 @@
+1. Flies visible in the cropped bottom-right region: several flies annotated in distinct colors, including one whose orientation is the focus of this evaluation.
+
+2. Spatial alignment: All ellipses remain correctly centered on their respective fly bodies throughout the clip. No positional jumps or drifting observed — the ellipses track the bodies accurately.
+
+3. Orientation: One fly's heading line flips to point toward the wrong end of the body for a sustained period roughly in the middle of the clip. The heading line is pointing toward the larger, more elongated posterior end (abdomen) rather than the smaller, rounder anterior end (head). This is not a brief wobble — the wrong orientation persists for many consecutive frames. The fly's body anatomy is clearly visible, and the head and abdomen are distinguishable: the heading line is unambiguously pointing the wrong way.
+
+4. Trail: The black background video confirms the error. The trail for the affected fly shows an abrupt ~180° reversal — the heading line history suddenly swings from pointing one direction to pointing the opposite direction. This is exactly what a head-to-tail annotation flip looks like in the trail.
+
+5. Identity: All flies keep their annotation colors throughout. No identity swaps.
+
+6. Continuity: All trajectories are continuous. No unexpected starts or ends.
+
+ERROR
+One fly has a sustained head-to-tail orientation flip — the heading line points toward the abdomen instead of the head for many consecutive frames, confirmed by an abrupt 180° reversal visible in the black background trail.

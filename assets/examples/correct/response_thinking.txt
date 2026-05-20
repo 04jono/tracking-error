@@ -1,0 +1,14 @@
+1. Flies visible in the cropped region: several flies annotated in distinct colors.
+
+2. Spatial alignment: All ellipses remain correctly centered on their respective fly bodies for the entire clip. No drifting, no positional jumps, no ellipse ending up on a different fly.
+
+3. Orientation: Heading lines consistently point toward the smaller, rounder anterior end (head) of each fly throughout the clip. I carefully check the body anatomy — the head is the narrower, more tapered end — and the heading lines match it in every frame. No frames where the heading line appears to point toward the larger, more elongated abdomen.
+
+4. Trail: The black background video shows smooth, continuous heading trails. All directional changes are gradual and consistent with normal fly locomotion. There are no abrupt ~180° reversals that would indicate a head-to-tail flip.
+
+5. Identity: Each fly retains its annotation color from start to finish. No color swaps visible.
+
+6. Continuity: All trajectories run continuously throughout the clip. No trajectory begins or ends while the corresponding fly is still visible in frame.
+
+CORRECT
+All fly annotations maintain accurate spatial placement on the correct fly bodies, correct anatomical head orientation, and consistent identity with no interruptions throughout the clip.

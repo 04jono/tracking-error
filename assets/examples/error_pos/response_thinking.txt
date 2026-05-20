@@ -1,0 +1,14 @@
+1. Flies visible in the cropped top-left region: several flies annotated in distinct colors, including at least two whose annotations are relevant to this evaluation.
+
+2. Spatial alignment: For most of the clip the ellipses sit correctly centered on the fly bodies. In the final 2-3 frames two ellipses abruptly jump — they are displaced multiple body-lengths from the flies they were tracking and are now overlapping completely different flies.
+
+3. Orientation: Before the abrupt jump the heading lines appear anatomically correct. After the jump the ellipses have landed on wrong flies entirely, so orientation can no longer be assessed for their original flies.
+
+4. Trail: The black background video makes this unmistakable. Two trails show a sudden discontinuous lateral jump near the very end of the clip. The displacement is far larger than any locomotion the fly could have produced in one or two frames — it is a tracker failure, not fly movement.
+
+5. Identity: Two annotation trails jump simultaneously to new positions. The tracker has cross-assigned two fly identities, causing an identity swap.
+
+6. Continuity: The trajectories of the affected flies abruptly vanish from their true positions and reappear elsewhere, inconsistent with any realistic fly movement.
+
+ERROR
+Two fly annotations jump discontinuously to incorrect positions in the final frames, indicating a position-level tracking failure and identity swap.

@@ -1,0 +1,2 @@
+ERROR
+One fly has a sustained head-to-tail orientation flip — the heading line points toward the abdomen (larger, elongated end) instead of the head (smaller, rounder end) for many consecutive frames, confirmed by an abrupt ~180° reversal in the black background trail.

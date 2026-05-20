@@ -1,0 +1,10 @@
+You are given three views of the same cropped region:
+1. The raw video without annotations — use this to see the flies' actual body anatomy
+2. The same region with tracking overlay (ellipses, heading lines, trails)
+3. The tracking data alone on a black background
+
+Use video 1 to judge fly anatomy directly (which end is the head vs abdomen).
+Use videos 2 and 3 to evaluate whether the annotations match that anatomy.
+Use the black background video (3) to clearly see the annotation trails and detect abrupt heading reversals.
+
+Work through each fly systematically before giving your verdict. End with CORRECT or ERROR on its own line.

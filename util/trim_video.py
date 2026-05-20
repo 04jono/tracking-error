@@ -60,7 +60,8 @@ def process_clip(i, input_video, output_dir, tiles):
         "-filter_complex", split + crops,
     ]
     for j, (row, col, *_) in enumerate(tiles):
-        cmd += ["-map", f"[t{j}]", "-c:v", "mpeg4", "-q:v", "3",
+        cmd += ["-map", f"[t{j}]", "-c:v", "libx264", "-crf", "18",
+                "-preset", "fast", "-pix_fmt", "yuv420p",
                 f"{prefix}_tile_{row}_{col}.mp4"]
 
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -75,7 +76,8 @@ def slice_clip(i, input_video, output_dir):
     result = subprocess.run([
         "ffmpeg", "-y",
         "-ss", str(start_time), "-t", "3", "-i", input_video,
-        "-c", "copy", out
+        "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+        "-pix_fmt", "yuv420p", out
     ], capture_output=True, text=True)
     if result.returncode != 0:
         print(f"  ERROR clip_{i}:\n{result.stderr}")
@@ -104,6 +106,66 @@ def slice_and_crop(input_video, output_dir, n_clips=None, workers=4):
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {executor.submit(process_clip, i, input_video, output_dir, tiles): i
+                   for i in range(n_clips)}
+        for future in as_completed(futures):
+            i, start_time = future.result()
+            print(f"  Done clip_{i} (seconds {start_time}-{start_time+2})")
+
+
+def _process_clip_multi(i, inputs, tiles):
+    """Crop one clip index from multiple input videos in a single ffmpeg call.
+
+    inputs: list of (input_video_path, output_dir) tuples, one per video type.
+    Produces clip_{i}_tile_{r}_{c}.mp4 in each output_dir for every tile.
+    """
+    start_time = i * 3
+    n_tiles = len(tiles)
+
+    cmd = ["ffmpeg", "-y"]
+    for input_video, _ in inputs:
+        cmd += ["-ss", str(start_time), "-t", "3", "-i", input_video]
+
+    fc_parts = []
+    for vi, _ in enumerate(inputs):
+        fc_parts.append(
+            f"[{vi}:v]split={n_tiles}" + "".join(f"[s{vi}_{j}]" for j in range(n_tiles))
+        )
+        for j, (_, _, x, y, cw, ch) in enumerate(tiles):
+            fc_parts.append(f"[s{vi}_{j}]crop={cw}:{ch}:{x}:{y}[t{vi}_{j}]")
+
+    cmd += ["-filter_complex", ";".join(fc_parts)]
+
+    for vi, (_, output_dir) in enumerate(inputs):
+        prefix = os.path.join(output_dir, f"clip_{i}")
+        for j, (row, col, *_) in enumerate(tiles):
+            cmd += ["-map", f"[t{vi}_{j}]", "-c:v", "libx264", "-crf", "18",
+                    "-preset", "fast", "-pix_fmt", "yuv420p",
+                    f"{prefix}_tile_{row}_{col}.mp4"]
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  ERROR clip_{i}:\n{result.stderr}")
+    return i, start_time
+
+
+def slice_and_crop_multi(inputs, n_clips=None, workers=4):
+    """Crop multiple video types together in one ffmpeg call per clip.
+
+    inputs: list of (input_video_path, output_dir) tuples.
+    All output dirs are created automatically.
+    """
+    for _, output_dir in inputs:
+        os.makedirs(output_dir, exist_ok=True)
+
+    first_video = inputs[0][0]
+    W, H = get_video_dimensions(first_video)
+    tiles = compute_tiles(W, H)
+
+    if n_clips is None:
+        n_clips = int(get_video_duration(first_video) // 3)
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {executor.submit(_process_clip_multi, i, inputs, tiles): i
                    for i in range(n_clips)}
         for future in as_completed(futures):
             i, start_time = future.result()
